@@ -1,0 +1,5 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tier 3 Retro · Nueva dirección</title><meta name="referrer" content="no-referrer"><link rel="canonical" href="https://alex-carrera.github.io/tier3-retro/"><body><h1>Ahora estamos en Tier 3 Retro.</h1><p>Estamos abriendo tu tablero o partida en la nueva dirección.</p><a href="https://alex-carrera.github.io/tier3-retro/">Ir a Tier 3 Retro</a><script>const redirect=function legacyRedirect(href,targetRoot){
+  const source=new URL(href),target=new URL(targetRoot);
+  if(!new URLSearchParams(source.hash.slice(1)).has('retro')&&source.searchParams.has('sala'))target.pathname=target.pathname.replace(/\/?$/,'/')+'juego/';
+  target.search=source.search;target.hash=source.hash;return target.href;
+};location.replace(redirect(location.href,"https://alex-carrera.github.io/tier3-retro/"));</script></body></html>

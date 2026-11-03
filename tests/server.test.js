@@ -35,3 +35,34 @@ test('Sala real: siete personas, límite de cupos, inicio, pausa y reconexión',
   const visitor=await open(port);clients.push(visitor);const reopened=waitMessage(visitor,m=>m.type==='state'&&m.room.status==='retro');visitor.send(JSON.stringify({type:'open-archive',id:shared.retro.id,key:shared.retro.key,name:'Visitante'}));assert.equal((await reopened).room.retro.cards.length,1);
   const intruder=await open(port);clients.push(intruder);const blocked=waitMessage(intruder,m=>m.type==='error');intruder.send(JSON.stringify({type:'open-archive',id:shared.retro.id,key:'0'.repeat(64),name:'Sin acceso'}));assert.match((await blocked).message,/acceso/);
 });
+
+async function isolatedServer(t){
+ const port=32000+Math.floor(Math.random()*10000),clients=[];
+ const child=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:String(port),NODE_ENV:'production',RETRO_STORE:'memory'},stdio:['ignore','pipe','pipe']});
+ t.after(()=>{clients.forEach(ws=>ws.terminate());child.kill();});
+ await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('No arrancó el servidor')),7000);child.stdout.once('data',()=>{clearTimeout(timer);resolve();});child.once('error',reject);});
+ return {async connect(){const ws=await open(port);clients.push(ws);return ws;}};
+}
+
+test('Crear una retro abre directamente el tablero y admite treinta participantes sin lobby ni juego',async t=>{
+ const server=await isolatedServer(t),host=await server.connect();
+ const joined=waitMessage(host,m=>m.type==='joined'),initial=waitMessage(host,m=>m.type==='state'&&m.room.status==='retro');
+ host.send(JSON.stringify({type:'create-retro',name:'Facilitadora',title:'Retro independiente'}));
+ const membership=await joined,{room}=await initial;
+ assert.equal(room.players.length,1);assert.equal(room.selfId,room.hostId);assert.equal(room.retro.title,'Retro independiente');assert.match(membership.code,/^R-/);assert.equal(room.retro.phase,'write');
+ for(let i=1;i<30;i++){const guest=await server.connect(),ack=waitMessage(guest,m=>m.type==='joined');guest.send(JSON.stringify({type:'open-archive',id:room.retro.id,key:room.retro.key,name:'Persona '+i}));await ack;}
+ const extra=await server.connect(),denied=waitMessage(extra,m=>m.type==='error');extra.send(JSON.stringify({type:'open-archive',id:room.retro.id,key:room.retro.key,name:'Persona 31'}));assert.match((await denied).message,/treinta/);
+ const timer=waitMessage(host,m=>m.type==='state'&&m.room.retro.round.mode==='running');host.send(JSON.stringify({type:'retro-timer',command:'start'}));assert.equal((await timer).room.players.length,30);
+});
+
+test('Navegar del juego a la retro conserva identidades y facilitador aunque otro miembro llegue primero',async t=>{
+ const server=await isolatedServer(t),host=await server.connect(),guest=await server.connect();
+ const hostAck=waitMessage(host,m=>m.type==='joined');host.send(JSON.stringify({type:'create',name:'Host'}));const h=await hostAck;
+ const guestAck=waitMessage(guest,m=>m.type==='joined');guest.send(JSON.stringify({type:'join',code:h.code,name:'Guest'}));const g=await guestAck;
+ const board=waitMessage(guest,m=>m.type==='state'&&m.room.status==='retro');host.send(JSON.stringify({type:'open-retro'}));const r=(await board).room;
+ const disconnected=waitMessage(guest,m=>m.type==='state'&&m.room.players.some(p=>p.id===h.id&&!p.connected));host.close();await disconnected;
+ const nextGuest=await server.connect(),guestBoard=waitMessage(nextGuest,m=>m.type==='state'&&m.room.status==='retro');nextGuest.send(JSON.stringify({type:'open-archive',id:r.retro.id,key:r.retro.key,memberToken:g.token,name:'Guest'}));const gr=(await guestBoard).room;
+ assert.equal(gr.hostId,h.id);assert.equal(gr.selfId,g.id);assert.equal(gr.players.length,2);
+ const nextHost=await server.connect(),hostBoard=waitMessage(nextHost,m=>m.type==='state'&&m.room.status==='retro');nextHost.send(JSON.stringify({type:'open-archive',id:r.retro.id,key:r.retro.key,memberToken:h.token,name:'Host'}));const hr=(await hostBoard).room;
+ assert.equal(hr.hostId,h.id);assert.equal(hr.selfId,h.id);assert.equal(hr.players.length,2);
+});

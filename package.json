@@ -6,7 +6,7 @@
   "description": "Seis retos cooperativos para la retro de Soporte Tier 3.",
   "scripts": {
     "dev": "node server/index.js",
-    "build": "vite build",
+    "build": "vite build && node scripts/verify-build.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "start": "NODE_ENV=production node server/index.js",
     "test": "node --test tests/*.test.js"

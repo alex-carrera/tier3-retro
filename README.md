@@ -1,20 +1,20 @@
 # Soporte Tier 3 · Retro
 
-[Entrar al juego](https://alex-carrera.github.io/juntos-retro/) · [Repositorio](https://github.com/alex-carrera/juntos-retro) · [Servidor](https://juntos-retro.onrender.com)
+[Abrir Tier 3 Retro](https://alex-carrera.github.io/tier3-retro/) · [Juego cooperativo](https://alex-carrera.github.io/tier3-retro/juego/) · [Repositorio](https://github.com/alex-carrera/tier3-retro) · [Servidor](https://juntos-retro.onrender.com)
 
-Seis retos cooperativos para 2–7 personas, seguidos por un tablero de retrospectiva compartido. Android, iPhone y computadora desde el navegador. Sin cuentas de jugadores ni rankings.
+Retrospectivas compartidas para hasta 30 personas, con música, bloques de cinco minutos, votos, acciones e historial permanente. El juego de seis retos para 2–7 personas es opcional y tiene su propia entrada. Android, iPhone y computadora desde el navegador.
 
 ## De la aventura a la retro
 
-1. En el inicio elige **Jugar con el equipo** para crear una sala, comparte su enlace o QR y espera al equipo.
+1. En la página **Juego cooperativo**, elige **Jugar con el equipo** para crear una sala, comparte su enlace o QR y espera al equipo.
 2. Todos marcan «Estoy listo» y quien facilita inicia.
 3. Completen seis retos con cuerdas, caídas, agarres, cintas y ráfagas.
 4. Cuando todos llegan a la última salida, el tablero de retro se abre automáticamente para todo el equipo.
 5. Escriban ideas, voten y acuerden acciones. La retro queda guardada en Supabase.
 
-Para saltarse la aventura, elige **Crear una retro** en el inicio: se abre un tablero compartido sin tener que completar niveles ni esperar a otra persona. Comparte su enlace privado para que entre el equipo. Puedes volver a tableros anteriores desde **Mis retrospectivas guardadas**.
+La página principal abre únicamente la aplicación de retro. Elige **Crear una retro**: se abre un tablero compartido sin tener que completar niveles ni esperar a otra persona. Comparte su enlace privado para que entre el equipo. Puedes volver a tableros anteriores desde **Mis retrospectivas guardadas**.
 
-Quien facilita también puede abrir el tablero desde la sala o el botón «Retro» durante un nivel, para respetar el tiempo de la reunión. Eso termina la aventura de esa sala. La demo local permite revisar juego y tablero con compañeros automáticos; sus notas no se guardan en la nube.
+Quien facilita también puede abrir el tablero desde la sala o el botón «Retro» durante un nivel, para respetar el tiempo de la reunión. Eso termina la aventura de esa sala. Cada aplicación tiene una demo local; sus notas no se guardan en la nube. El juego lleva a la aplicación de retro al terminar o pulsar «Retro», conservando la identidad y el facilitador.
 
 ## Controles y cooperación
 
@@ -75,7 +75,7 @@ npm ci
 npm run dev
 ```
 
-Abre `http://localhost:3000`. Para un teléfono en la misma Wi-Fi, abre la IP local de la computadora y el puerto 3000. El enlace/QR debe generarse desde esa dirección, no desde localhost.
+Abre `http://localhost:3000/` para la retro y `http://localhost:3000/juego/` para el juego. Para un teléfono en la misma Wi-Fi, abre la IP local de la computadora y el puerto 3000. El enlace/QR debe generarse desde esa dirección, no desde localhost.
 
 ```sh
 npm test
@@ -98,3 +98,11 @@ Proyecto Supabase dedicado: **Soporte Tier 3 Retro**. El esquema reproducible es
 Cada tablero obtiene una clave aleatoria de 256 bits. En Supabase solo se guarda su hash; las políticas RLS exigen esa clave adicional en la cabecera de la petición. Sin el enlace correcto, la API no devuelve las notas. El enlace lleva la clave en el fragmento, que no se envía como parte de una petición de página. El documento persistido no incluye tokens de participantes en texto plano.
 
 Las notas se guardan al crear el tablero y después de cada cambio, con reintentos y estado de guardado visible. Los enlaces de acceso son compartidos por el squad: quien los tenga puede leer y participar, sin crear una cuenta. Para instalar en otro proyecto aplica el esquema una vez y cambia la configuración publicable. No uses `service_role` ni claves secretas en el código del navegador.
+
+## Entradas independientes y direcciones anteriores
+
+Vite compila dos páginas HTML: `index.html` y `juego/index.html`. La retro no importa Phaser, los bots ni el renderer. `scripts/verify-build.mjs` comprueba esa separación y que los recursos de ambas páginas se resuelvan al recargar. Los módulos de perfil, historial y direcciones viven en `src/common/`; las sesiones usan claves diferentes para retro y juego. Los perfiles y enlaces del navegador anteriores siguen siendo compatibles.
+
+El comando WebSocket `create-retro` crea un tablero directamente, sin un lobby ni jugadores listos. El paso desde una partida conserva durante 30 segundos a quien facilita mientras el equipo cambia de página.
+
+El sitio de compatibilidad de la dirección anterior está en `compat/juntos-retro/`. `node scripts/generate-legacy.mjs` regenera sus páginas de redirección. Conserva los fragmentos privados de retro y envía las invitaciones `?sala=` a `/tier3-retro/juego/`. El repositorio principal es `alex-carrera/tier3-retro`; el anterior queda solo para compatibilidad. El hostname interno del servidor de Render se mantiene para conservar las conexiones existentes.

@@ -4,7 +4,7 @@ export const WIDTH = 1280;
 export const HEIGHT = 680;
 export const FLOOR = 594;
 export const MAX_PLAYERS = 7;
-export const PALETTE = ['#ed7757', '#e8b544', '#7d9e78', '#719eb0', '#a98abb', '#df94a3', '#8caaa1'];
+export { PALETTE } from './profile.js';
 export const LEVELS = [
   { title: 'Unidos desde el inicio', subtitle: 'Recoge tu chispa sobre plataformas más estrechas. La cuerda transmite el peso: salten junto a su pareja.', tag: '01 · UNIRSE', ropeMode:'pairs',ropeLength:170, platforms: [{x:340,y:514,w:125,h:18},{x:540,y:454,w:125,h:18},{x:740,y:514,w:125,h:18}] },
   { title: 'Contra la corriente', subtitle: 'Dos cintas en sentidos opuestos. Cada quien sostiene su botón de color durante casi dos segundos; E permite frenar.', tag: '02 · RESISTIR', belts:[{x:150,w:430,y:FLOOR,speed:-135},{x:580,w:400,y:FLOOR,speed:115}],holdSeconds:1.9, platforms: [] },

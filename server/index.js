@@ -20,7 +20,7 @@ if(!production) {
 }
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2','.json':'application/json','.mp3':'audio/mpeg'};
 const server=http.createServer(async(req,res)=>{
-  if(req.url==='/health') {res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,version:'ledge-climb-v6'}));return;}
+  if(req.url==='/health') {res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,version:'standalone-retro-v7'}));return;}
   if(vite) {vite.middlewares(req,res);return;}
   try {
     const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
@@ -48,7 +48,13 @@ const code=()=>Array.from(randomBytes(5),b=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b
 const broadcast=room=>{for(const p of room.players) send(p.ws,{type:'state',serverNow:Date.now(),room:publicRoom(room,p.id)});};
 const finishMembership=(ws,room,p)=>{ws.room=room;ws.player=p;p.ws=ws;p.connected=true;room.lastActive=Date.now();send(ws,{type:'joined',token:p.token,code:room.code,id:p.id});broadcast(room);};
 const removePlayer=(room,p)=>{room.players=room.players.filter(o=>o!==p);if(room.hostId===p.id) room.hostId=room.players.find(p=>p.connected)?.id||room.players[0]?.id;if(!room.players.length)rooms.delete(room.code);};
-function beginRetro(room){openRetro(room,{id:randomUUID(),key:randomBytes(32).toString('hex')});queueArchiveSave(room,broadcast);broadcast(room);}
+function beginRetro(room){
+  if(room.retro)return;
+  // Keep the facilitator while browsers navigate from the game to the board.
+  room.handoffUntil=Date.now()+30000;
+  openRetro(room,{id:randomUUID(),key:randomBytes(32).toString('hex')});queueArchiveSave(room,broadcast);broadcast(room);
+  setTimeout(()=>{room.handoffUntil=0;if(!room.players.some(p=>p.id===room.hostId&&p.connected)){room.hostId=room.players.find(p=>p.connected)?.id||room.hostId;queueArchiveSave(room,broadcast);broadcast(room);}},30000).unref();
+}
 async function archivedRoom(id,key){
   let room=[...rooms.values()].find(r=>r.retro?.id===id);
   if(room){if(hash(room.retro.key)!==hash(key))throw new Error('El enlace no tiene acceso a esta retro.');return room;}
@@ -79,19 +85,28 @@ wss.on('connection',ws=>{
         let p=room.players.find(p=>msg.memberToken&&(p.token===msg.memberToken||p.tokenHash===hash(msg.memberToken)));
         if(!p){if(room.players.length>=30)return fail(ws,'Esta retro ya tiene treinta participantes.');p=makePlayer(randomBytes(8).toString('hex'),cleanName(msg.name),PALETTE.includes(msg.color)?msg.color:PALETTE[0],['ears','sprout','cap'].includes(msg.accessory)?msg.accessory:'ears');p.token=randomBytes(24).toString('hex');room.players.push(p);}
         else {if(p.ws&&p.ws!==ws){p.ws.player=null;p.ws.room=null;p.ws.close(4001,'Sesión abierta en otra pestaña');}p.token=msg.memberToken;}
-        if(!room.players.some(other=>other.connected&&other.id===room.hostId))room.hostId=p.id;
+        if(!room.players.some(other=>other.connected&&other.id===room.hostId)&&!(room.handoffUntil>Date.now()))room.hostId=p.id;
         finishMembership(ws,room,p);queueArchiveSave(room,broadcast);
       }finally{ws.joining=false;}
       return;
     }
     if(msg.type==='ping') return send(ws,{type:'pong',at:msg.at});
     if(msg.type==='resume' && !ws.player) {
-      const room=rooms.get(String(msg.code).toUpperCase());
+      const room=rooms.get(String(msg.code))||rooms.get(String(msg.code).toUpperCase());
       const p=room?.players.find(p=>p.token===msg.token||p.tokenHash===hash(msg.token));
       if(!p) return send(ws,{type:'expired',message:'La sala ya terminó o el servidor se reinició. Crea una nueva aventura.'});
       if(p.ws?.readyState===WebSocket.OPEN && p.ws!==ws) {p.ws.player=null;p.ws.room=null;p.ws.close(4001,'Sesión abierta en otra pestaña');}
       p.token=msg.token;
       return finishMembership(ws,room,p);
+    }
+    if(msg.type==='create-retro'&&!ws.player){
+      if(rooms.size>=100)return fail(ws,'Hay muchas salas activas. Intenta en un momento.');
+      const p=makePlayer(randomBytes(8).toString('hex'),cleanName(msg.name),PALETTE.includes(msg.color)?msg.color:PALETTE[0],['ears','sprout','cap'].includes(msg.accessory)?msg.accessory:'ears');
+      p.token=randomBytes(24).toString('hex');
+      const id=randomUUID(),room={code:'R-'+id,hostId:p.id,players:[p],level:0,lastActive:Date.now()};
+      openRetro(room,{id,key:randomBytes(32).toString('hex')});
+      if(msg.title)room.retro.title=String(msg.title).trim().replace(/[\u0000-\u001f]/g,'').slice(0,80)||room.retro.title;
+      rooms.set(room.code,room);queueArchiveSave(room,broadcast);finishMembership(ws,room,p);return;
     }
     if((msg.type==='create'||msg.type==='join') && !ws.player) {
       let room;
@@ -144,7 +159,7 @@ wss.on('connection',ws=>{
   ws.on('close',()=>{
     const room=ws.room,p=ws.player;if(!room||!p||p.ws!==ws)return;
     p.connected=false;p.input={left:false,right:false,jump:false};p.ws=null;
-    if(room.hostId===p.id)room.hostId=room.players.find(p=>p.connected)?.id||p.id;
+    if(room.hostId===p.id&&!(room.handoffUntil>Date.now()))room.hostId=room.players.find(p=>p.connected)?.id||p.id;
     if(room.status==='retro')queueArchiveSave(room,broadcast);
     broadcast(room);
   });
