@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import{appRoot,retroURL,gameURL,boardRef,legacyRedirect}from'../src/common/routes.js';
-import{loadProfile,storedRetros,rememberBoard,readGameSession,retroMember,GAME_SESSION,RETRO_SESSION}from'../src/common/profile.js';
+import{loadProfile,storedRetros,rememberBoard,readGameSession,retroMember,forgetBoard,GAME_SESSION,RETRO_SESSION}from'../src/common/profile.js';
 const root='https://alex-carrera.github.io/tier3-retro/';
 const board={id:'a8a56233-9a98-4123-bf5a-14d3015cae10',key:'a'.repeat(64),title:'Squad',createdAt:'2026-11-02T00:00:00Z'};
 const store=()=>{const map=new Map();return{getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};};
@@ -28,4 +28,10 @@ test('Perfil e historial anteriores se conservan y las sesiones del juego y retr
  assert.equal(session.getItem('juntos-session'),null);assert.ok(session.getItem(GAME_SESSION));assert.ok(session.getItem(RETRO_SESSION));
  assert.equal(storedRetros(local)[0].id,board.id);assert.equal(retroMember('other-board',local,session),undefined);
  session.removeItem(GAME_SESSION);assert.equal(readGameSession(session),null);assert.equal(retroMember(board.id,local,session),'retro-token');
+});
+
+
+test('Quitar un enlace local conserva las otras retrospectivas',()=>{
+ const local=store(),session=store();rememberBoard(board,'token-a',local,session);rememberBoard({...board,id:'other'},'token-b',local,session);
+ forgetBoard(board.id,local);assert.equal(storedRetros(local).length,1);assert.equal(storedRetros(local)[0].id,'other');
 });

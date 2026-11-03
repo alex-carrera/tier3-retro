@@ -10,3 +10,5 @@ export function rememberBoard(board,memberToken,storage=localStorage,sessions=se
 }
 export function readGameSession(storage=sessionStorage){try{const raw=storage.getItem(GAME_SESSION)||storage.getItem('juntos-session');if(!raw)return null;const value=JSON.parse(raw);if(!value?.code||!value?.token)return null;storage.setItem(GAME_SESSION,raw);storage.removeItem('juntos-session');return value;}catch{return null;}}
 export function retroMember(id,storage=localStorage,sessions=sessionStorage){try{const current=JSON.parse(sessions.getItem(RETRO_SESSION)||'null');if(current?.id===id&&current.memberToken)return current.memberToken;}catch{}return storedRetros(storage).find(b=>b.id===id)?.memberToken;}
+
+export function forgetBoard(id,storage=localStorage){storage.setItem('tier3-retro-history',JSON.stringify(storedRetros(storage).filter(board=>board.id!==id)));}

@@ -3,7 +3,7 @@ import {PALETTE} from '../../shared/profile.js';
 import {openRetro,applyRetroAction} from '../../shared/retro.js';
 import {mountRetro} from '../retro-board.js';
 import {appRoot,retroURL,gameURL,boardRef} from '../common/routes.js';
-import {loadProfile,saveProfile,storedRetros,rememberBoard,retroMember,RETRO_SESSION} from '../common/profile.js';
+import {loadProfile,saveProfile,storedRetros,rememberBoard,forgetBoard,retroMember,RETRO_SESSION} from '../common/profile.js';
 import {serverURL} from '../common/transport.js';
 
 const app=document.querySelector('#app'),$=s=>document.querySelector(s);
@@ -52,8 +52,8 @@ function renderBoard(){
 function openBoard(ref){disconnect();boardUI?.destroy();boardUI=null;state=null;archiveRef=ref;memberToken=null;history.replaceState(null,'',retroURL(location.href,ref));landing();if(profile.name||retroMember(ref.id)){pendingAction=archiveAction();connect();}}
 function showHistory(){
   const entries=storedRetros(),layer=document.createElement('div');layer.className='modal-layer';
-  layer.innerHTML=`<div class="modal retro-history" role="dialog" aria-modal="true" aria-label="Tus retrospectivas"><h2>Tus retrospectivas</h2><p>Enlaces guardados en este navegador. Los tableros se conservan en la nube.</p><div class="history-list">${entries.map((b,i)=>`<button class="history-entry" data-board="${i}"><strong>${esc(b.title||'Retro Squad')}</strong><span>${esc(new Date(b.createdAt).toLocaleDateString('es',{timeZone:'America/Guayaquil'}))} · Abrir →</span></button>`).join('')||'<p>Aún no hay tableros guardados.</p>'}</div><button class="secondary" id="close-history">Cerrar</button></div>`;
-  document.body.append(layer);$('#close-history').onclick=()=>layer.remove();layer.querySelectorAll('[data-board]').forEach(button=>button.onclick=()=>{layer.remove();openBoard(entries[Number(button.dataset.board)]);});
+  layer.innerHTML=`<div class="modal retro-history" role="dialog" aria-modal="true" aria-label="Tus retrospectivas"><h2>Tus retrospectivas</h2><p>Enlaces guardados en este navegador. Los tableros se conservan en la nube. Quitar un enlace de esta lista no borra su tablero; guarda el enlace privado si quieres volver a abrirlo.</p><div class="history-list">${entries.map((b,i)=>`<div class="history-row"><button class="history-entry" data-board="${i}"><strong>${esc(b.title||'Retro Squad')}</strong><span>${esc(new Date(b.createdAt).toLocaleDateString('es',{timeZone:'America/Guayaquil'}))} · Abrir →</span></button><button class="ghost" data-forget="${i}" aria-label="Quitar enlace local de ${esc(b.title||'Retro Squad')}">Quitar de esta lista</button></div>`).join('')||'<p>Aún no hay tableros guardados.</p>'}</div><button class="secondary" id="close-history">Cerrar</button></div>`;
+  document.body.append(layer);$('#close-history').onclick=()=>layer.remove();layer.querySelectorAll('[data-board]').forEach(button=>button.onclick=()=>{layer.remove();openBoard(entries[Number(button.dataset.board)]);});layer.querySelectorAll('[data-forget]').forEach(button=>button.onclick=()=>{try{forgetBoard(entries[Number(button.dataset.forget)].id);button.closest('.history-row').remove();}catch{notify('No pudimos actualizar la lista de este navegador.');}});
 }
 function confirmLeave(){
   const layer=document.createElement('div');layer.className='modal-layer';layer.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-label="Salir de la retro"><h2>¿Salimos de la retro?</h2><p>${demo?'Esta demo contiene notas locales.':'El tablero seguirá disponible con su enlace privado. Si aún se está guardando, espera a ver «Historial guardado».'}</p><div class="modal-actions"><button class="secondary" id="stay-retro">Quedarme</button><button class="primary" id="leave-retro">Salir</button></div></div>`;document.body.append(layer);$('#stay-retro').onclick=()=>layer.remove();$('#leave-retro').onclick=()=>{layer.remove();if(demo)goHome();else {leaving=true;send({type:'leave'});}};
