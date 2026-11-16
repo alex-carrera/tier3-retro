@@ -62,7 +62,7 @@ function goHome(){disconnect();boardUI?.destroy();boardUI=null;archiveRef=null;m
 function startDemo(){
   disconnect();demo=true;memberToken=null;archiveRef=null;history.replaceState(null,'',appRoot(location.href));
   state={selfId:'you',hostId:'you',players:[{id:'you',name:profile.name||'Tú',color:profile.color,connected:true,input:{}},...['Luna','Nico'].map((name,i)=>({id:'demo'+i,name,color:PALETTE[i+1],connected:true,input:{}}))]};
-  openRetro(state,{id:crypto.randomUUID(),key:'demo',persistence:'demo'});renderBoard();
+  openRetro(state,{id:crypto.randomUUID(),key:'demo',persistence:'demo'});renderBoard();boardUI.update();
 }
 const query=new URLSearchParams(location.search);
 if(query.has('sala')&&!archiveRef)location.replace(gameURL(location.href,query.get('sala')));
